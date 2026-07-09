@@ -23,14 +23,9 @@ void main() {
 
   vec3 glow = nlGlow(s_MatTexture, v_texcoord0, v_extra.a);
 
-  diffuse.rgb *= diffuse.rgb;
   diffuse.a = 1.0;
-
   diffuse.rgb *= color.rgb;
   diffuse.rgb += glow;
-
-  diffuse.rgb = mix(diffuse.rgb, v_fog.rgb, v_fog.a);
-  diffuse.rgb = colorCorrection(diffuse.rgb);
 
   gl_FragColor = diffuse;
 }
