@@ -2,7 +2,7 @@ $input a_color0, a_position, a_texcoord0, a_texcoord1
 #ifdef INSTANCING
   $input i_data0, i_data1, i_data2, i_data3
 #endif
-$output v_color0, v_color1, v_fog, v_refl, v_texcoord0, v_lightmapUV, v_extra
+$output v_color0, v_color1, v_fog, v_texcoord0, v_lightmapUV, v_extra
 
 #include <bgfx_shader.sh>
 #include <newb/main.sh>
@@ -30,10 +30,6 @@ void main() {
 
   #if !(defined(DEPTH_ONLY_OPAQUE) || defined(DEPTH_ONLY) || defined(INSTANCING))
 
-  #ifdef NL_CHUNK_LOAD_ANIM
-    worldPos.y -= NL_CHUNK_LOAD_ANIM*RenderChunkFogAlpha.x*RenderChunkFogAlpha.x*RenderChunkFogAlpha.x;
-  #endif
-
   #ifdef RENDER_AS_BILLBOARDS
     worldPos += vec3(0.5,0.5,0.5);
 
@@ -56,31 +52,18 @@ void main() {
 
   float relativeDist = camDis / FogAndDistanceControl.z;
 
-  vec3 gPos = worldPos.xyz + CameraPosition.xyz;
   vec3 cPos = a_position.xyz;
   vec3 bPos = fract(cPos);
-  vec3 tiledCpos = fract(cPos*0.0625);
 
-  // bit 16 for dithering??
-  // bit 15-1 for texture mapping
-  // uvec2 a16 = uvec2(round(a_texcoord0 * 65535.0));
-  // vec2 uv0 = vec2((a16 & uvec2(32767u)) << uvec2(1)) / 65535.0;
-  // uv0 += (2.0*vec2((a16 & uvec2(32768u)) >> uvec2(15)) - 1.0) / 32768.0;
   vec2 uv0 = 2.0*a_texcoord0.xy;
   uv0 = fract(uv0) + ((floor(uv0)-0.5)/16384.0);
 
-  // bit 16 for dithering / mask tint
-  // bits 15-9 for ??
-  // bits 8-5 for x, bits 4-1 for y
-  // uvec2 a16 = uvec2(round(a_texcoord1 * 65535.0));
-  // vec2 uv1 = vec2(uvec2(a16.y >> 4u, a16.y) & uvec2(15u)) * vec2(0.06666667);
   vec2 uv1 = fract(a_texcoord1.y*vec2(256.0, 4096.0));
   vec2 lit = uv1*uv1;
 
   bool isColored = color.r != color.g || color.r != color.b;
   float shade = isColored ? color.g*1.5 : color.g;
 
-  // tree leaves detection
   #if defined(ALPHA_TEST) && !defined(RENDER_AS_BILLBOARDS)
     bool isTree = (isColored && (bPos.x+bPos.y+bPos.z < 0.001)) || color.a == 0.0;
   #else
@@ -90,14 +73,10 @@ void main() {
   nl_environment env = nlDetectEnvironment(DimensionID.x, TimeOfDay.x, Day.x, FogColor.rgb, FogAndDistanceControl.xyz);
   nl_skycolor skycol = nlSkyColors(env);
 
-  // time
   highp float t = ViewPositionAndTime.w;
 
-  // convert color space to linear-space
   #ifdef SEASONS
     isTree = true;
-
-    // season tree leaves are colored in fragment
     color.w *= color.w;
     color = vec4(color.www, 1.0);
   #else
@@ -106,59 +85,17 @@ void main() {
     }
   #endif
 
-  vec3 torchColor; // modified by nl_lighting
+  vec3 torchColor;
   vec3 light = nlLighting(s_LightMapTexture, skycol, env, worldPos, torchColor, a_color0.rgb, uv1, lit, isTree, shade, t, FogAndDistanceControl.z, TimeOfDay.x, CameraPosition.xyz);
 
-  #if defined(ALPHA_TEST) && (defined(NL_PLANTS_WAVE) || defined(NL_LANTERN_WAVE)) && !defined(RENDER_AS_BILLBOARDS)
-    nlWave(worldPos, light, env.rainFactor, uv1, lit, uv0, bPos, a_color0, cPos, tiledCpos, t, s_MatTexture, isColored, camDis, isTree);
-  #endif
-
-  // loading chunks
   relativeDist += RenderChunkFogAlpha.x;
 
   vec4 fogColor;
-  fogColor.rgb = nlRenderSky(skycol, env, viewDir, t, true);
+  fogColor.rgb = skycol.horizon;
   fogColor.a = nlRenderFogFade(relativeDist, FogColor.rgb, FogAndDistanceControl.xy);
-  #if defined(NL_GODRAY) && defined(NL_FOG)
-    fogColor.a = mix(fogColor.a, 1.0, min(NL_GODRAY*nlRenderGodRayIntensity(cPos, worldPos, t, uv1, relativeDist, FogColor.rgb), 1.0));
-  #endif
 
   if (env.nether) {
-    // blend fog with void color
     fogColor.rgb = colorCorrectionInv(FogColor.rgb);
-  }
-
-  #if defined(NL_CLOUDY_FOG) && defined(NL_FOG)
-    float fg = smoothstep(0.0, 1.0-NL_CLOUDY_FOG, relativeDist);
-    fg *= sin(5.0*viewDir.y + 2.0*viewDir.x - 0.1*t);
-    fg *= sin(5.0*viewDir.y - 2.0*viewDir.x + viewDir.z + 0.1*t);
-    fogColor.a += (1.0-fogColor.a)*fg*fg;
-  #endif
-
-  float water = 0.0;
-  vec4 refl = vec4(0.0,0.0,0.0,0.0);
-  #if defined(TRANSPARENT) && !(defined(RENDER_AS_BILLBOARDS) || defined(SEASONS))
-    color.a = mix(color.a, 1.0, 0.5*clamp(relativeDist, 0.0, 1.0));
-    if (a_color0.b > 0.3 && a_color0.a < 0.95) {
-      water = 1.0;
-      refl = nlWater(color, worldPos, skycol, env, a_color0, viewDir, cPos, tiledCpos, gPos, CameraPosition.xyz, light, torchColor, lit, bPos.y, camDis, t);
-    } else {
-      refl = nlRefl(color, skycol, env, viewDir, worldPos, tiledCpos, CameraPosition.xyz, torchColor, lit, camDis, FogAndDistanceControl.z, t);
-    }
-  #else
-    refl = nlRefl(color, skycol, env, viewDir, worldPos, tiledCpos, CameraPosition.xyz, torchColor, lit, camDis, FogAndDistanceControl.z, t);
-  #endif
-
-  vec4 pos = mul(u_viewProj, vec4(worldPos, 1.0));
-  #if defined(NL_RAIN_MIST_OPACITY) && defined(NL_FOG)
-    if (env.rainFactor > 0.0) {
-      float humidAir = env.rainFactor*lit.y*lit.y*nlWindblow(pos.xyz, t);
-      fogColor.a = mix(fogColor.a, 1.0, humidAir*NL_RAIN_MIST_OPACITY);
-    }
-  #endif
-
-  if (env.underwater) {
-    nlUnderwaterLighting(light, pos.xyz, lit, uv1, tiledCpos, cPos, t, skycol.horizon);
   }
 
   color.rgb *= light;
@@ -169,31 +106,15 @@ void main() {
     float shimmer = 1.0;
   #endif
 
-  #ifdef NL_LAVA_NOISE
-    bool isc = (a_color0.r+a_color0.g+a_color0.b) > 2.999;
-    bool isb = bPos.y < 0.891 && bPos.y > 0.889;
-    if (isc && isb && (uv1.x > 0.81 && uv1.x < 0.876) && uv0.y > 0.5) {
-      vec4 lava = nlLavaNoise(gPos, t);
-      #ifdef NL_LAVA_NOISE_BUMP
-        worldPos.y += NL_LAVA_NOISE_BUMP*lava.a;
-      #endif
-      color.rgb *= lava.rgb;
-    }
-  #endif
-
-  v_extra = vec4(shade, worldPos.y, water, shimmer);
-  v_refl = refl;
+  v_extra = vec4(shade, worldPos.y, 0.0, shimmer);
   v_texcoord0 = uv0;
   v_lightmapUV = uv1;
   v_color0 = color;
   v_color1 = a_color0;
   v_fog = fogColor;
 
-  #else
-
-  vec4 pos = mul(u_viewProj, vec4(worldPos, 1.0));
-
   #endif
 
+  vec4 pos = mul(u_viewProj, vec4(worldPos, 1.0));
   gl_Position = pos;
 }
