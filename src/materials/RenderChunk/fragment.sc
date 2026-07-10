@@ -23,7 +23,6 @@ void main() {
 
   vec3 glow = nlGlow(s_MatTexture, v_texcoord0, v_extra.a);
 
-  diffuse.a = 1.0;
   diffuse.rgb *= color.rgb;
   diffuse.rgb += glow;
 
