@@ -23,7 +23,15 @@ void main() {
 
   vec3 glow = nlGlow(s_MatTexture, v_texcoord0, v_extra.a);
 
-  diffuse.rgb *= color.rgb;
+  if (v_extra.g > 0.5) {
+    // special tint-mask blend path (leaves, etc.)
+    vec3 blended = mix(diffuse.rgb, diffuse.rgb * color.rgb, vec3(diffuse.a)) * color.a;
+    diffuse.rgb = blended;
+    diffuse.a = 1.0;
+  } else {
+    diffuse.rgb *= color.rgb;
+  }
+
   diffuse.rgb *= texture2D(s_LightMapTexture, v_lightmapUV).rgb;
   diffuse.rgb += glow;
 
