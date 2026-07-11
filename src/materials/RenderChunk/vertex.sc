@@ -39,12 +39,13 @@ void main() {
     vec4 color = a_color0;
   #endif
 
-  // vanilla: raw texcoord decode, no dithering/bit tricks needed here (already handled by uv0 formula)
   vec2 uv0 = 2.0*a_texcoord0.xy;
   uv0 = fract(uv0) + ((floor(uv0)-0.5)/16384.0);
 
-  // vanilla: lightmap uv decode, straight passthrough, no lighting math
   vec2 uv1 = fract(a_texcoord1.y*vec2(256.0, 4096.0));
+
+  // secret tint-mask flag: bit 8 of the packed texcoord1.y value (matches vanilla's v_ditheringAndMaskTinting.y)
+  float tintMaskFlag = mod(floor(a_texcoord1.y * 256.0), 2.0);
 
   highp float t = ViewPositionAndTime.w;
 
@@ -54,10 +55,10 @@ void main() {
     float shimmer = 1.0;
   #endif
 
-  v_extra = vec4(0.0, 0.0, 0.0, shimmer);
+  v_extra = vec4(0.0, tintMaskFlag, 0.0, shimmer);
   v_texcoord0 = uv0;
   v_lightmapUV = uv1;
-  v_color0 = color; // raw, vanilla passthrough — no tint boost, no squaring
+  v_color0 = color;
 
   #endif
 
