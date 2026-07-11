@@ -20,6 +20,7 @@ void main() {
   #endif
 
   vec3 worldPos = mul(model, vec4(a_position, 1.0)).xyz;
+  vec4 pos = mul(u_viewProj, vec4(worldPos, 1.0));
 
   #if !(defined(DEPTH_ONLY_OPAQUE) || defined(DEPTH_ONLY) || defined(INSTANCING))
 
@@ -35,6 +36,7 @@ void main() {
                  (a_color0.z - 0.5)) +
                  (boardPlane * (a_color0.x - 0.5));
     vec4 color = vec4(1.0,1.0,1.0,1.0);
+    pos = mul(u_viewProj, vec4(worldPos, 1.0));
   #else
     vec4 color = a_color0;
   #endif
@@ -51,8 +53,6 @@ void main() {
   #else
     float shimmer = 1.0;
   #endif
-
-  vec4 pos = mul(u_viewProj, vec4(worldPos, 1.0));
 
   v_extra = vec4(0.0, 0.0, 0.0, shimmer);
   v_texcoord0 = uv0;
