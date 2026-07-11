@@ -2,7 +2,7 @@ $input a_color0, a_position, a_texcoord0, a_texcoord1
 #ifdef INSTANCING
   $input i_data0, i_data1, i_data2, i_data3
 #endif
-$output v_color0, v_texcoord0, v_lightmapUV, v_extra
+$output v_color0, v_clipPosition, v_ditheringAndMaskTinting, v_texcoord0, v_lightmapUV, v_worldPos, v_worldPosition, v_extra
 
 #include <bgfx_shader.sh>
 #include <newb/main.sh>
@@ -44,9 +44,6 @@ void main() {
 
   vec2 uv1 = fract(a_texcoord1.y*vec2(256.0, 4096.0));
 
-  // secret tint-mask flag: bit 8 of the packed texcoord1.y value (matches vanilla's v_ditheringAndMaskTinting.y)
-  float tintMaskFlag = mod(floor(a_texcoord1.y * 256.0), 2.0);
-
   highp float t = ViewPositionAndTime.w;
 
   #if defined(NL_GLOW_SHIMMER) && !defined(RENDER_AS_BILLBOARDS)
@@ -55,13 +52,18 @@ void main() {
     float shimmer = 1.0;
   #endif
 
-  v_extra = vec4(0.0, tintMaskFlag, 0.0, shimmer);
+  vec4 pos = mul(u_viewProj, vec4(worldPos, 1.0));
+
+  v_extra = vec4(0.0, 0.0, 0.0, shimmer);
   v_texcoord0 = uv0;
   v_lightmapUV = uv1;
   v_color0 = color;
+  v_clipPosition = pos;
+  v_ditheringAndMaskTinting = vec2(0.0, 0.0);
+  v_worldPos = worldPos;
+  v_worldPosition = vec4(worldPos, 0.0);
 
   #endif
 
-  vec4 pos = mul(u_viewProj, vec4(worldPos, 1.0));
   gl_Position = pos;
 }
