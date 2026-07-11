@@ -1,4 +1,4 @@
-$input v_color0, v_color1, v_fog, v_texcoord0, v_lightmapUV, v_extra
+$input v_color0, v_texcoord0, v_lightmapUV, v_extra
 
 #include <bgfx_shader.sh>
 #include <newb/main.sh>
@@ -23,7 +23,9 @@ void main() {
 
   vec3 glow = nlGlow(s_MatTexture, v_texcoord0, v_extra.a);
 
+  // vanilla: texture * vertex color * lightmap sample. no tonemap, no squaring, no fog (fog removed per earlier config)
   diffuse.rgb *= color.rgb;
+  diffuse.rgb *= texture2D(s_LightMapTexture, v_lightmapUV).rgb;
   diffuse.rgb += glow;
 
   gl_FragColor = diffuse;
