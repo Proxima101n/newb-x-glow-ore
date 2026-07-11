@@ -21,12 +21,11 @@ void main() {
     }
   #endif
 
-  vec3 glow = nlGlow(s_MatTexture, v_texcoord0, v_extra.a);
+  // vec3 glow = nlGlow(s_MatTexture, v_texcoord0, v_extra.a);
 
-  // vanilla: texture * vertex color * lightmap sample. no tonemap, no squaring, no fog (fog removed per earlier config)
   diffuse.rgb *= color.rgb;
   diffuse.rgb *= texture2D(s_LightMapTexture, v_lightmapUV).rgb;
-  diffuse.rgb += glow;
+  // diffuse.rgb += glow;
 
   gl_FragColor = diffuse;
 }
