@@ -1,4 +1,4 @@
-$input v_color0, v_texcoord0, v_lightmapUV, v_extra
+$input v_color0, v_clipPosition, v_ditheringAndMaskTinting, v_texcoord0, v_lightmapUV, v_worldPos, v_worldPosition, v_extra
 
 #include <bgfx_shader.sh>
 #include <newb/main.sh>
@@ -23,15 +23,7 @@ void main() {
 
   vec3 glow = nlGlow(s_MatTexture, v_texcoord0, v_extra.a);
 
-  if (v_extra.g > 0.5) {
-    // special tint-mask blend path (leaves, etc.)
-    vec3 blended = mix(diffuse.rgb, diffuse.rgb * color.rgb, vec3(diffuse.a)) * color.a;
-    diffuse.rgb = blended;
-    diffuse.a = 1.0;
-  } else {
-    diffuse.rgb *= color.rgb;
-  }
-
+  diffuse.rgb *= color.rgb;
   diffuse.rgb *= texture2D(s_LightMapTexture, v_lightmapUV).rgb;
   diffuse.rgb += glow;
 
