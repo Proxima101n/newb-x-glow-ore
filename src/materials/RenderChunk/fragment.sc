@@ -23,7 +23,7 @@ void main() {
 
   // vec3 glow = nlGlow(s_MatTexture, v_texcoord0, v_extra.a);
 
-  diffuse.rgb *= color.rgb;
+  // diffuse.rgb *= color.rgb;
   diffuse.rgb *= texture2D(s_LightMapTexture, v_lightmapUV).rgb;
   // diffuse.rgb += glow;
 
